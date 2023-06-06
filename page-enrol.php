@@ -1,24 +1,5 @@
 <?php
 	global $wpdb;
-	// $user_table = 'users';
-	// $course_table = 'courses';
-	// $enrol_table = 'enrolments';
-	// $sql = "SELECT * FROM `users` 
-	// INNER JOIN `enrolments` ON users.ID = enrolments.userID
-	// INNER JOIN `courses` ON courses.ID = enrolments.courseID;";
-	// $rows = $wpdb->get_results($sql);
-	// $arr_enrol_user = array();
-	// $arr_enrol_code = array();
-	// $arr_enrol_desc = array();
-	// $arr_enrol_stat = array();
-	// foreach ($rows as $row){
-	// 	array_push($arr_enrol_user, $row->FirstName . " " . $row->LastName);
-	// 	array_push($arr_enrol_code, $row->courseID);
-	// 	array_push($arr_enrol_desc, $row->Description);
-	// 	array_push($arr_enrol_stat, $row->status);
-	// }
-	// $size = count($arr_enrol_user);
-	// $pages = ceil($size/20);
 ?>
 
 <!DOCTYPE html>
@@ -111,7 +92,7 @@
 		<h1>ENROLMENT LIST</h1>
 		<form action="" method="GET">
 			<div class="input-group mb-3">
-				<input type="text" name="search" value="<?php if(isset($_GET['search'])) {echo $_GET['search']; } ?>" class="form-control" placeholder="Search Enrolment">
+				<input type="text" name="search" value="<?php if(isset($_GET['search'])) {echo $_GET['search']; } ?>" class="form-control" placeholder="Search Enrolment (Course Code/Course Title/User Name)">
 				<button type="submit" class="btn btn-primary">Search</button>
 			</div>
 		</form>
@@ -131,6 +112,12 @@
 		<table>
 			<tbody>
 				<?php
+					$results_per_page = 20;
+					$page = 1;
+					if (isset($_GET['Page'])) {
+						$page = $_GET['Page'];
+					}
+					$this_page_first_result = ($page - 1) * $results_per_page;
 					if (isset($_GET['search']))
 					{
 						$filterValue = $_GET['search'];
@@ -139,14 +126,37 @@
 						INNER JOIN `courses` ON courses.ID = enrolments.courseID 
 						WHERE enrolments.courseID LIKE '%$filterValue%'
 						OR courses.Description LIKE '%$filterValue%'
-						;";
+						OR users.FirstName LIKE '%$filterValue%'
+						OR users.LastName LIKE '%$filterValue%';";
+
+						$final_sql = "SELECT * FROM `users` 
+						INNER JOIN `enrolments` ON users.ID = enrolments.userID
+						INNER JOIN `courses` ON courses.ID = enrolments.courseID 
+						WHERE enrolments.courseID LIKE '%$filterValue%'
+						OR courses.Description LIKE '%$filterValue%'
+						OR users.FirstName LIKE '%$filterValue%'
+						OR users.LastName LIKE '%$filterValue%'
+						LIMIT " . $this_page_first_result . " , " . $results_per_page .
+						";";
 					} else {
 						$sql = "SELECT * FROM `users` 
 						INNER JOIN `enrolments` ON users.ID = enrolments.userID
+						INNER JOIN `courses` ON courses.ID = enrolments.courseID;";
+
+						$final_sql = "SELECT * FROM `users` 
+						INNER JOIN `enrolments` ON users.ID = enrolments.userID
 						INNER JOIN `courses` ON courses.ID = enrolments.courseID
-						;";
+						LIMIT " . $this_page_first_result . " , " . $results_per_page .
+						";";
 					}
-					$rows = $wpdb->get_results($sql);
+					$total_rows = $wpdb->get_results($sql);
+					$size = 0;
+					foreach ($total_rows as $row) {
+						$size++;
+					}
+					$pages = ceil($size/$results_per_page);
+
+					$rows = $wpdb->get_results($final_sql);
 					$arr_enrol_user = array();
 					$arr_enrol_code = array();
 					$arr_enrol_desc = array();
@@ -157,10 +167,10 @@
 						array_push($arr_enrol_desc, $row->Description);
 						array_push($arr_enrol_stat, $row->status);
 					}
-					$size = count($arr_enrol_user);
 
 					if ($size > 0) {
-						for($i = 0; $i < $size; $i++) { ?>
+						$current_page_results = count($arr_enrol_user);
+						for($i = 0; $i < $current_page_results; $i++) { ?>
 							<tr>
 								<td><?php echo $arr_enrol_user[$i]; ?></td>
 								<td><?php echo $arr_enrol_code[$i]; ?></td>
@@ -195,6 +205,7 @@
 				?>
 			</tbody>
 		</table>
+
 		<ul class="pagination">
 			<li class="page-item">
 			<a class="page-link" href="#" aria-label="Previous">
@@ -204,9 +215,19 @@
 			</li>
 			<?php for ($i = 1; $i <= $pages; $i++) { ?>
 			<li class="page-item">
-				<a class="page-link" href="#">
-					<?php echo $i;?>
+				<?php if(isset($_GET['search'])) {?>
+				<a class="page-link" href="/enrol/?search=<?php echo $_GET['search']; ?>&Page=<?php echo $i; ?>">
+					<?php 
+						echo $i;
+					?>
 				</a>
+				<?php } else { ?>
+				<a class="page-link" href="/enrol/?Page=<?php echo $i; ?>">
+					<?php 
+						echo $i;
+					?>
+				</a>
+				<?php } ?>
 			</li>
 			<?php } ?>
 			<li class="page-item">
